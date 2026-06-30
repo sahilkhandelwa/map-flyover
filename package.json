@@ -1,0 +1,10 @@
+{
+  "name": "map-flyover-render",
+  "private": true,
+  "scripts": {
+    "render": "node render.js"
+  },
+  "dependencies": {
+    "puppeteer": "^23.0.0"
+  }
+}
