@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Map Flyover - Satellite</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.25.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.25.0/mapbox-gl.js"></script>
+<script src="config.js"></script>
+<style>
+body { margin: 0; padding: 0; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+.label {
+  position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.7); color: #fff; padding: 10px 24px;
+  border-radius: 8px; font-family: sans-serif; font-size: 18px; z-index: 10;
+  transition: opacity 0.4s;
+}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="label" id="label">India</div>
+<script>
+const locations = [
+  { name: 'India',   center: [78.96, 20.59], zoom: 3.8 },
+  { name: 'Iran',    center: [53.69, 32.43], zoom: 4.2 },
+  { name: 'USA',     center: [-98.58, 39.83], zoom: 3.5 }
+];
+mapboxgl.accessToken = MAPBOX_TOKEN;
+const map = new mapboxgl.Map({
+  container: 'map',
+  style: 'mapbox://styles/mapbox/satellite-v9',
+  center: locations[0].center,
+  zoom: locations[0].zoom,
+  projection: 'globe'
+});
+const label = document.getElementById('label');
+let step = 0;
+function flyToNext() {
+  if (step >= locations.length) { step = 0; }
+  const loc = locations[step];
+  label.textContent = loc.name;
+  label.style.opacity = 1;
+  if (step === 0) {
+    map.flyTo({ center: loc.center, zoom: loc.zoom, duration: 0 });
+  } else {
+    map.flyTo({ center: loc.center, zoom: loc.zoom, duration: 4000 });
+  }
+  step++;
+  setTimeout(flyToNext, 7000);
+}
+map.on('load', () => {
+  setTimeout(flyToNext, 3000);
+});
+</script>
+</body>
+</html>
