@@ -24,8 +24,9 @@ process.env.DISPLAY = ':99';
   const ctx = await browser.newContext({ viewport: { width: W, height: H, deviceScaleFactor: 1 } });
   const page = await ctx.newPage();
 
+  const dir = __dirname;
   console.log('Opening satellite.html...');
-  await page.goto('file:///root/map-flyover/satellite.html', { waitUntil: 'networkidle', timeout: 180000 });
+  await page.goto(`file://${dir}/satellite.html`, { waitUntil: 'networkidle', timeout: 180000 });
   await page.waitForFunction(() => window.animationReady === true, { timeout: 60000 });
   console.log('Warmup done, starting frame capture...');
 
@@ -48,7 +49,7 @@ process.env.DISPLAY = ':99';
   const sz = fs.statSync(`${tmp}/00000.png`).size;
   console.log(`Frame size: ${sz} bytes`);
 
-  const out = '/root/map-flyover/satellite.mp4';
+  const out = `${dir}/satellite.mp4`;
   execSync(
     `ffmpeg -y -framerate ${FPS} -i ${tmp}/%05d.png -c:v libx264 -pix_fmt yuv420p -preset medium -crf 20 "${out}"`,
     { stdio: 'inherit' }
