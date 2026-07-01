@@ -6,6 +6,7 @@ const FPS = 15;
 const DURATION = 36;
 const TOTAL = FPS * DURATION;
 const W = 1280, H = 720;
+const FRAME_SLEEP = 80; // ms between frames (allows tiles to render from cache)
 
 const xvfb = spawn('Xvfb', [':99', '-screen', '0', `${W}x${H}x24`, '-ac'], {});
 process.env.DISPLAY = ':99';
@@ -25,36 +26,34 @@ process.env.DISPLAY = ':99';
   const page = await ctx.newPage();
 
   const dir = __dirname;
-  console.log('Opening satellite.html...');
+  console.log('Opening satellite.html, warming tiles...');
+  console.time('warmup');
   await page.goto(`file://${dir}/satellite.html`, { waitUntil: 'networkidle', timeout: 180000 });
-  await page.waitForFunction(() => window.animationReady === true, { timeout: 60000 });
-  console.log('Warmup done, starting frame capture...');
+  await page.waitForFunction(() => window.warmupDone === true, { timeout: 120000 });
+  console.timeEnd('warmup');
 
-  const start = Date.now();
+  console.log(`Capturing ${TOTAL} frames at ${FPS}fps...`);
+  console.time('render');
   for (let f = 0; f < TOTAL; f++) {
-    const targetMs = start + (f * 1000 / FPS);
-    const now = Date.now();
-    if (targetMs > now) {
-      await new Promise(r => setTimeout(r, targetMs - now));
-    }
+    await page.evaluate(({ f, t }) => { window.setFrame(f, t); }, { f, t: TOTAL });
+    await new Promise(r => setTimeout(r, FRAME_SLEEP));
     await page.screenshot({
       path: `${tmp}/${String(f).padStart(5, '0')}.png`,
       type: 'png'
     });
-    if (f % 30 === 0) console.log(`  Frame ${f}/${TOTAL}`);
+    if (f % 54 === 0) console.log(`  ${Math.round(f / TOTAL * 100)}% (${f}/${TOTAL})`);
   }
+  console.timeEnd('render');
 
   await ctx.close();
 
-  const sz = fs.statSync(`${tmp}/00000.png`).size;
-  console.log(`Frame size: ${sz} bytes`);
-
   const out = `${dir}/satellite.mp4`;
+  console.log('Encoding video...');
   execSync(
     `ffmpeg -y -framerate ${FPS} -i ${tmp}/%05d.png -c:v libx264 -pix_fmt yuv420p -preset medium -crf 20 "${out}"`,
     { stdio: 'inherit' }
   );
-  console.log(`Saved: satellite.mp4`);
+  console.log(`Saved: ${out}`);
   fs.rmSync(tmp, { recursive: true, force: true });
 
   await browser.close();
