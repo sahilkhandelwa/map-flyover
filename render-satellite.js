@@ -3,10 +3,8 @@ const { execSync, spawn } = require('child_process');
 const fs = require('fs');
 
 const FPS = 15;
-const DURATION = 36;
-const TOTAL = FPS * DURATION;
 const W = 1280, H = 720;
-const FRAME_SLEEP = 80; // ms between frames (allows tiles to render from cache)
+const FRAME_SLEEP = 50;
 
 const xvfb = spawn('Xvfb', [':99', '-screen', '0', `${W}x${H}x24`, '-ac'], {});
 process.env.DISPLAY = ':99';
@@ -26,22 +24,23 @@ process.env.DISPLAY = ':99';
   const page = await ctx.newPage();
 
   const dir = __dirname;
-  console.log('Opening satellite.html, warming tiles...');
+  console.log('Opening satellite.html, warming all frames...');
   console.time('warmup');
   await page.goto(`file://${dir}/satellite.html`, { waitUntil: 'networkidle', timeout: 180000 });
-  await page.waitForFunction(() => window.warmupDone === true, { timeout: 120000 });
+  await page.waitForFunction(() => window.warmupDone === true, { timeout: 600000 });
   console.timeEnd('warmup');
 
-  console.log(`Capturing ${TOTAL} frames at ${FPS}fps...`);
+  const totalFrames = await page.evaluate(() => Math.round(window.KEYFRAMES[window.KEYFRAMES.length - 1][0] * 15));
+  console.log(`Total frames: ${totalFrames}, capturing at ${FPS}fps...`);
   console.time('render');
-  for (let f = 0; f < TOTAL; f++) {
-    await page.evaluate(({ f, t }) => { window.setFrame(f, t); }, { f, t: TOTAL });
+  for (let f = 0; f < totalFrames; f++) {
+    await page.evaluate(({ f }) => { window.setFrame(f); }, { f });
     await new Promise(r => setTimeout(r, FRAME_SLEEP));
     await page.screenshot({
       path: `${tmp}/${String(f).padStart(5, '0')}.png`,
       type: 'png'
     });
-    if (f % 54 === 0) console.log(`  ${Math.round(f / TOTAL * 100)}% (${f}/${TOTAL})`);
+    if (f % 69 === 0 || f === totalFrames - 1) console.log(`  ${Math.round(f / totalFrames * 100)}% (${f}/${totalFrames})`);
   }
   console.timeEnd('render');
 

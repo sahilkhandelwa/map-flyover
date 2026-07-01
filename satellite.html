@@ -13,7 +13,7 @@ body { margin: 0; padding: 0; }
   position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
   background: rgba(0,0,0,0.7); color: #fff; padding: 10px 30px;
   border-radius: 8px; font-family: sans-serif; font-size: 26px; font-weight: bold; z-index: 1000;
-  transition: opacity 0.3s;
+  transition: opacity 0.2s;
 }
 .country-glow path {
   filter: drop-shadow(0 0 6px rgba(255,255,255,0.95)) drop-shadow(0 0 14px rgba(255,255,200,0.5));
@@ -38,6 +38,7 @@ const map = L.map('map', {
 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
   maxZoom: 19
 }).addTo(map);
+
 const label = document.getElementById('label');
 const highlightLayer = L.geoJSON(null, {
   className: 'country-glow',
@@ -47,42 +48,42 @@ const cityMarker = L.circleMarker([0, 0], {
   className: 'city-marker',
   radius: 22, color: '#fff', fillColor: '#f0c040', fillOpacity: 0.9, weight: 3
 }).addTo(map).setStyle({ opacity: 0, fillOpacity: 0 });
-const centers = {
-  India: [20.59, 78.96], Iran: [32.43, 53.69], USA: [39.83, -98.58]
-};
-const cities = {
-  Mumbai: [19.076, 72.877], Delhi: [28.704, 77.103], Bangalore: [12.972, 77.594],
-  Tehran: [35.689, 51.389], Isfahan: [32.652, 51.670],
-  'New York': [40.713, -74.006], 'Los Angeles': [34.052, -118.244], Chicago: [41.878, -87.629]
-};
 
-// Keyframes: [time_sec, lat, lng, zoom, country, city]
 const KEYFRAMES = [
   [0,   20.59, 78.96, 4,   'India',  ''],
   [2.5, 20.59, 78.96, 6,   'India',  ''],
   [4.5, 20.59, 78.96, 6,   'India',  ''],
-  [5.5, 20.59, 78.96, 5,   'India',  ''],
-  [6.5, 19.08, 72.88, 12,  '',       'Mumbai'],
-  [8.5, 19.08, 72.88, 12,  '',       'Mumbai'],
-  [9.5, 28.70, 77.10, 11,  '',       'Delhi'],
-  [11.5,28.70, 77.10, 11,  '',       'Delhi'],
-  [12.5,12.97, 77.59, 11,  '',       'Bangalore'],
-  [14.5,12.97, 77.59, 11,  '',       'Bangalore'],
-  [16,  32.43, 53.69, 4.5, '',       ''],
-  [18.5,32.43, 53.69, 6,   'Iran',  ''],
-  [20.5,32.43, 53.69, 6,   'Iran',  ''],
-  [21.5,32.43, 53.69, 5,   '',       ''],
-  [22.5,35.69, 51.39, 12,  '',       'Tehran'],
-  [24.5,35.69, 51.39, 12,  '',       'Tehran'],
-  [25.5,32.65, 51.67, 11,  '',       'Isfahan'],
-  [27.5,32.65, 51.67, 11,  '',       'Isfahan'],
-  [29,  39.83,-98.58, 4,   '',       ''],
-  [31.5,39.83,-98.58, 5.5, 'USA',    ''],
-  [36,  39.83,-98.58, 5.5, 'USA',    '']
+  [5.5, 20.59, 78.96, 5,   '',       ''],
+  [7,   19.08, 72.88, 12,  '',       'Mumbai'],
+  [9.5, 19.08, 72.88, 12,  '',       'Mumbai'],
+  [10.5,28.70, 77.10, 11,  '',       'Delhi'],
+  [13,  28.70, 77.10, 11,  '',       'Delhi'],
+  [14,  12.97, 77.59, 11,  '',       'Bangalore'],
+  [16.5,12.97, 77.59, 11,  '',       'Bangalore'],
+  [18.5,32.43, 53.69, 5,   '',       ''],
+  [21,  32.43, 53.69, 6,   'Iran',   ''],
+  [23,  32.43, 53.69, 6,   'Iran',   ''],
+  [24,  32.43, 53.69, 5,   '',       ''],
+  [25.5,35.69, 51.39, 12,  '',       'Tehran'],
+  [28,  35.69, 51.39, 12,  '',       'Tehran'],
+  [29,  32.65, 51.67, 11,  '',       'Isfahan'],
+  [31.5,32.65, 51.67, 11,  '',       'Isfahan'],
+  [33.5,39.83,-98.58, 4,   '',       ''],
+  [36,  39.83,-98.58, 5.5, 'USA',    ''],
+  [38,  39.83,-98.58, 5.5, 'USA',    ''],
+  [39,  40.71,-74.01, 12,  '',       'New York'],
+  [41,  40.71,-74.01, 12,  '',       'New York'],
+  [41.5,34.05,-118.24, 12, '',       'Los Angeles'],
+  [43.5,34.05,-118.24, 12, '',       'Los Angeles'],
+  [44,  41.88,-87.63, 12,   '',      'Chicago'],
+  [46,  41.88,-87.63, 12,   '',      'Chicago']
 ];
 
+const DURATION = KEYFRAMES[KEYFRAMES.length - 1][0];
+const TOTAL_FRAMES = Math.round(DURATION * 15);
+
 function getState(frame, totalFrames) {
-  const t = (frame / totalFrames) * 36;
+  const t = (frame / totalFrames) * DURATION;
   let kfA = KEYFRAMES[0], kfB = KEYFRAMES[KEYFRAMES.length - 1];
   for (let i = 0; i < KEYFRAMES.length - 1; i++) {
     if (t >= KEYFRAMES[i][0] && t <= KEYFRAMES[i + 1][0]) {
@@ -94,16 +95,7 @@ function getState(frame, totalFrames) {
   const lat = kfA[1] + (kfB[1] - kfA[1]) * frac;
   const lng = kfA[2] + (kfB[2] - kfA[2]) * frac;
   const zoom = kfA[3] + (kfB[3] - kfA[3]) * frac;
-  // Find active overlay: walk backwards from current time
   let country = '', city = '';
-  for (let i = KEYFRAMES.length - 1; i >= 0; i--) {
-    if (KEYFRAMES[i][0] <= t) {
-      if (KEYFRAMES[i][4]) country = KEYFRAMES[i][4];
-      if (KEYFRAMES[i][5]) city = KEYFRAMES[i][5];
-      break;
-    }
-  }
-  // If a later keyframe cleared the overlay, respect that
   for (let i = 0; i < KEYFRAMES.length; i++) {
     if (KEYFRAMES[i][0] > t) break;
     if (KEYFRAMES[i][4] === '') country = '';
@@ -111,15 +103,15 @@ function getState(frame, totalFrames) {
     if (KEYFRAMES[i][4]) country = KEYFRAMES[i][4];
     if (KEYFRAMES[i][5]) city = KEYFRAMES[i][5];
   }
-  return { lat, lng, zoom, country, city };
+  return { lat, lng, zoom, country, city, frame, totalFrames };
 }
 
 function applyState(s) {
   highlightLayer.clearLayers();
   cityMarker.setStyle({ opacity: 0, fillOpacity: 0 });
   label.style.opacity = 0;
-  if (s.city && cities[s.city]) {
-    cityMarker.setLatLng(cities[s.city]);
+  if (s.city) {
+    cityMarker.setLatLng([s.cityLat || 0, s.cityLng || 0]);
     cityMarker.setStyle({ opacity: 1, fillOpacity: 0.9 });
     label.textContent = s.city;
     label.style.opacity = 1;
@@ -131,43 +123,33 @@ function applyState(s) {
   }
 }
 
-window.setFrame = function(frame, totalFrames) {
-  const s = getState(frame, totalFrames);
+const CITY_COORDS = {
+  Mumbai: [19.076, 72.877], Delhi: [28.704, 77.103], Bangalore: [12.972, 77.594],
+  Tehran: [35.689, 51.389], Isfahan: [32.652, 51.670],
+  'New York': [40.713, -74.006], 'Los Angeles': [34.052, -118.244], Chicago: [41.878, -87.629]
+};
+
+window.setFrame = function(frame) {
+  const s = getState(frame, TOTAL_FRAMES);
+  if (s.city && CITY_COORDS[s.city]) {
+    s.cityLat = CITY_COORDS[s.city][0];
+    s.cityLng = CITY_COORDS[s.city][1];
+  }
   map.setView([s.lat, s.lng], s.zoom, { animate: false });
   applyState(s);
 };
 
-// Collect unique positions for warmup
-function getWarmupPositions() {
-  const visited = new Set();
-  const positions = [];
-  for (const kf of KEYFRAMES) {
-    const key = `${kf[1].toFixed(2)},${kf[2].toFixed(2)},${kf[3]}`;
-    if (!visited.has(key)) {
-      visited.add(key);
-      positions.push([kf[1], kf[2], kf[3]]);
-    }
-  }
-  return positions;
+function waitForTiles(timeout) {
+  return new Promise(resolve => {
+    const timer = setTimeout(resolve, timeout);
+    map.once('idle', () => { clearTimeout(timer); resolve(); });
+  });
 }
 
 map.whenReady(async () => {
-  // Warmup: visit each unique position, wait for tiles
-  const positions = getWarmupPositions();
-  for (const [lat, lng, zoom] of positions) {
-    map.setView([lat, lng], zoom, { animate: false });
-    await new Promise(resolve => {
-      let lastTile = Date.now();
-      const handler = () => { lastTile = Date.now(); };
-      map.on('tileload', handler);
-      const check = setInterval(() => {
-        if (Date.now() - lastTile > 400) {
-          clearInterval(check); map.off('tileload', handler); resolve();
-        }
-      }, 100);
-      map.once('idle', () => { clearInterval(check); map.off('tileload', handler); resolve(); });
-      setTimeout(() => { clearInterval(check); map.off('tileload', handler); resolve(); }, 5000);
-    });
+  for (let f = 0; f < TOTAL_FRAMES; f++) {
+    window.setFrame(f);
+    await waitForTiles(2000);
   }
   window.warmupDone = true;
 });
