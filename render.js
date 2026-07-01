@@ -1,16 +1,6 @@
-const puppeteer = require('puppeteer');
-const { execSync } = require('child_process');
+const { chromium } = require('playwright');
+const { execSync, spawn } = require('child_process');
 const fs = require('fs');
-
-const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN;
-if (!MAPBOX_TOKEN) {
-  console.error('ERROR: MAPBOX_TOKEN environment variable is required');
-  process.exit(1);
-}
-
-fs.writeFileSync(`${__dirname}/config.js`,
-  `const MAPBOX_TOKEN = ${JSON.stringify(MAPBOX_TOKEN)};\n`
-);
 
 const styles = [
   { name: 'streets',   file: 'streets.html' },
@@ -18,67 +8,60 @@ const styles = [
   { name: 'outdoors',  file: 'outdoors.html' },
 ];
 
-const FPS = 30;
+const FPS = 15;
 const DURATION = 24;
-const TOTAL_FRAMES = FPS * DURATION;
-const W = 1920, H = 1080;
+const TOTAL = FPS * DURATION;
+const W = 1280, H = 720;
+
+const xvfb = spawn('Xvfb', [':99', '-screen', '0', `${W}x${H}x24`, '-ac'], {});
+process.env.DISPLAY = ':99';
 
 async function renderOne(browser, { name, file }) {
-  console.log(`\n=== Rendering ${name} ===`);
-  const tmpDir = `/tmp/frames-${name}`;
-  fs.rmSync(tmpDir, { recursive: true, force: true });
-  fs.mkdirSync(tmpDir, { recursive: true });
+  console.log(`\n=== ${name} ===`);
+  const tmp = `/tmp/frames-${name}`;
+  fs.rmSync(tmp, { recursive: true, force: true });
+  fs.mkdirSync(tmp, { recursive: true });
 
-  const page = await browser.newPage();
-  await page.setViewport({ width: W, height: H });
+  const ctx = await browser.newContext({ viewport: { width: W, height: H, deviceScaleFactor: 1 } });
+  const page = await ctx.newPage();
 
-  const pageUrl = `file://${__dirname}/${file}`;
-  await page.goto(pageUrl, { waitUntil: 'networkidle0', timeout: 45000 });
+  await page.goto(`file://${__dirname}/${file}`, { waitUntil: 'networkidle', timeout: 60000 });
 
-  await page.waitForFunction(() => {
-    const c = document.querySelector('.mapboxgl-canvas');
-    return c && c.width > 100 && c.height > 100;
-  }, { timeout: 30000 });
-  console.log('  Map loaded, capturing...');
+  // Wait for tiles to load
+  await page.waitForSelector('.leaflet-tile-loaded', { timeout: 30000 });
+  await page.waitForTimeout(3000);
 
-  await new Promise(r => setTimeout(r, 1500));
-
-  for (let f = 0; f < TOTAL_FRAMES; f++) {
+  for (let f = 0; f < TOTAL; f++) {
     await page.screenshot({
-      path: `${tmpDir}/${String(f).padStart(5, '0')}.png`
+      path: `${tmp}/${String(f).padStart(5, '0')}.png`,
+      type: 'png'
     });
-    if (f % 30 === 0) {
-      console.log(`  Frame ${f}/${TOTAL_FRAMES}`);
-    }
+    if (f % 15 === 0) console.log(`  Frame ${f}/${TOTAL}`);
     await new Promise(r => setTimeout(r, 1000 / FPS));
   }
 
-  await page.close();
+  await ctx.close();
 
-  const outputPath = `${__dirname}/${name}.mp4`;
+  const sz = fs.statSync(`${tmp}/00000.png`).size;
+  console.log(`  Frame size: ${sz} bytes`);
+
+  const out = `${__dirname}/${name}.mp4`;
   execSync(
-    `ffmpeg -y -framerate ${FPS} -i ${tmpDir}/%05d.png ` +
-    `-c:v libx264 -pix_fmt yuv420p -preset medium -crf 20 "${outputPath}"`,
+    `ffmpeg -y -framerate ${FPS} -i ${tmp}/%05d.png -c:v libx264 -pix_fmt yuv420p -preset medium -crf 20 "${out}"`,
     { stdio: 'inherit' }
   );
-  console.log(`  Video saved: ${name}.mp4`);
-  fs.rmSync(tmpDir, { recursive: true, force: true });
+  console.log(`  Saved: ${name}.mp4`);
+  fs.rmSync(tmp, { recursive: true, force: true });
 }
 
 (async () => {
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-gpu-sandbox',
-      '--use-gl=angle',
-      '--use-angle=swiftshader'
-    ]
+  await new Promise(r => setTimeout(r, 2000));
+  const browser = await chromium.launch({
+    headless: false,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
-  for (const s of styles) {
-    await renderOne(browser, s);
-  }
+  for (const s of styles) { await renderOne(browser, s); }
   await browser.close();
-  console.log('\n=== All 3 videos rendered successfully! ===');
+  xvfb.kill();
+  console.log('\n=== All 3 done! ===');
 })();

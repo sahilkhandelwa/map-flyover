@@ -1,2 +1,5 @@
 config.js
 node_modules/
+satellite.mp4
+test-*.cjs
+webgl-test.html
