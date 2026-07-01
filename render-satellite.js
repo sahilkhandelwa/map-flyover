@@ -1,40 +1,60 @@
 const { chromium } = require('playwright');
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
 const fs = require('fs');
+
 const FPS = 15;
+const DURATION = 36;
+const TOTAL = FPS * DURATION;
 const W = 1280, H = 720;
-const FRAME_MS = 30;
+
+const xvfb = spawn('Xvfb', [':99', '-screen', '0', `${W}x${H}x24`, '-ac'], {});
+process.env.DISPLAY = ':99';
 
 (async () => {
+  await new Promise(r => setTimeout(r, 2000));
   const browser = await chromium.launch({
-    headless: true,
+    headless: false,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
   });
-  const ctx = await browser.newContext({ viewport: { width: W, height: H, deviceScaleFactor: 1 } });
-  const page = await ctx.newPage();
-  const dir = __dirname;
 
   const tmp = '/tmp/frames-satellite';
   fs.rmSync(tmp, { recursive: true, force: true });
   fs.mkdirSync(tmp, { recursive: true });
 
-  console.log('Opening satellite.html, warming tiles...');
-  await page.goto(`file://${dir}/satellite.html`, { waitUntil: 'networkidle', timeout: 180000 });
-  await page.waitForFunction(() => window.warmupDone === true, { timeout: 180000 });
+  const ctx = await browser.newContext({ viewport: { width: W, height: H, deviceScaleFactor: 1 } });
+  const page = await ctx.newPage();
 
-  const totalFrames = await page.evaluate(() => window.TF);
-  console.log(`Warmup done. Rendering ${totalFrames} frames...`);
+  const dir = __dirname;
+  console.log('Opening satellite.html...');
+  await page.goto(`file://${dir}/satellite.html`, { waitUntil: 'networkidle', timeout: 180000 });
+  await page.waitForFunction(() => window.warmupDone === true, { timeout: 30000 });
+  console.log(`Rendering ${TOTAL} frames with tile wait...`);
   console.time('render');
 
-  for (let f = 0; f < totalFrames; f++) {
-    await page.evaluate(f => window.setFrame(f), f);
-    await new Promise(r => setTimeout(r, FRAME_MS));
-    await page.screenshot({ path: `${tmp}/${String(f).padStart(5, '0')}.png`, type: 'png' });
-    if (f % 69 === 0 || f === totalFrames - 1) process.stdout.write(`\r  ${Math.round(f/totalFrames*100)}%`);
+  for (let f = 0; f < TOTAL; f++) {
+    await page.evaluate(async (f) => {
+      window.setFrameAndWait(f, 540);
+    }, f);
+    await page.screenshot({
+      path: `${tmp}/${String(f).padStart(5, '0')}.png`,
+      type: 'png'
+    });
+    if (f % 54 === 0) console.log(`  ${Math.round(f / TOTAL * 100)}% (${f}/${TOTAL})`);
   }
-  console.log('\nEncoding...');
-  execSync(`ffmpeg -y -framerate ${FPS} -i ${tmp}/%05d.png -c:v libx264 -pix_fmt yuv420p -preset medium -crf 20 "${dir}/satellite.mp4"`, { stdio: 'inherit' });
+
+  console.timeEnd('render');
+  await ctx.close();
+
+  const out = `${dir}/satellite.mp4`;
+  console.log('Encoding...');
+  execSync(
+    `ffmpeg -y -framerate ${FPS} -i ${tmp}/%05d.png -c:v libx264 -pix_fmt yuv420p -preset medium -crf 20 "${out}"`,
+    { stdio: 'inherit' }
+  );
+  console.log(`Saved: ${out}`);
   fs.rmSync(tmp, { recursive: true, force: true });
+
   await browser.close();
+  xvfb.kill();
   console.log('Done!');
 })();
