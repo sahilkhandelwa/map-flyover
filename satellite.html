@@ -41,7 +41,7 @@ const KF = [
   [44,41.88,-87.63,12,'Chicago'], [46,41.88,-87.63,12,'Chicago']
 ];
 const DUR = KF[KF.length-1][0];
-const TF = Math.round(DUR*15);
+var TF = Math.round(DUR*15);
 
 function state(f) {
   const t=(f/TF)*DUR; let ka=KF[0], kb=KF[KF.length-1];
