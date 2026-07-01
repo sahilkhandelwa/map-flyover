@@ -1,4 +1,4 @@
-name: Render Map Flyover Videos
+name: Render Satellite Map Video
 
 on:
   workflow_dispatch:
@@ -19,18 +19,14 @@ jobs:
         run: |
           npm install
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
+          sudo apt-get install -y -qq ffmpeg xvfb
+          npx playwright install chromium --with-deps
 
-      - name: Render videos
-        env:
-          MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+      - name: Render video
         run: npm run render
 
-      - name: Upload videos
+      - name: Upload video
         uses: actions/upload-artifact@v4
         with:
-          name: map-flyover-videos
-          path: |
-            streets.mp4
-            satellite.mp4
-            outdoors.mp4
+          name: satellite-map-flyover
+          path: satellite.mp4
