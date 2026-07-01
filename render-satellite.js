@@ -4,7 +4,7 @@ const fs = require('fs');
 
 const FPS = 15;
 const W = 1280, H = 720;
-const FRAME_SLEEP = 50;
+const RECORD_SECONDS = 50;
 
 const xvfb = spawn('Xvfb', [':99', '-screen', '0', `${W}x${H}x24`, '-ac'], {});
 process.env.DISPLAY = ':99';
@@ -16,46 +16,39 @@ process.env.DISPLAY = ':99';
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
   });
 
-  const tmp = '/tmp/frames-satellite';
-  fs.rmSync(tmp, { recursive: true, force: true });
-  fs.mkdirSync(tmp, { recursive: true });
-
   const ctx = await browser.newContext({ viewport: { width: W, height: H, deviceScaleFactor: 1 } });
   const page = await ctx.newPage();
-
   const dir = __dirname;
-  console.log('Opening satellite.html, warming all frames...');
-  console.time('warmup');
+
+  console.log('Opening satellite.html, warming tiles...');
   await page.goto(`file://${dir}/satellite.html`, { waitUntil: 'networkidle', timeout: 180000 });
-  await page.waitForFunction(() => window.warmupDone === true, { timeout: 600000 });
-  console.timeEnd('warmup');
-
-  const totalFrames = await page.evaluate(() => Math.round(window.KEYFRAMES[window.KEYFRAMES.length - 1][0] * 15));
-  console.log(`Total frames: ${totalFrames}, capturing at ${FPS}fps...`);
-  console.time('render');
-  for (let f = 0; f < totalFrames; f++) {
-    await page.evaluate(({ f }) => { window.setFrame(f); }, { f });
-    await new Promise(r => setTimeout(r, FRAME_SLEEP));
-    await page.screenshot({
-      path: `${tmp}/${String(f).padStart(5, '0')}.png`,
-      type: 'png'
-    });
-    if (f % 69 === 0 || f === totalFrames - 1) console.log(`  ${Math.round(f / totalFrames * 100)}% (${f}/${totalFrames})`);
-  }
-  console.timeEnd('render');
-
-  await ctx.close();
+  console.log('Waiting for warmup...');
+  await page.waitForFunction(() => window.animationReady === true, { timeout: 120000 });
+  console.log('Warmup done, starting recording...');
 
   const out = `${dir}/satellite.mp4`;
-  console.log('Encoding video...');
-  execSync(
-    `ffmpeg -y -framerate ${FPS} -i ${tmp}/%05d.png -c:v libx264 -pix_fmt yuv420p -preset medium -crf 20 "${out}"`,
-    { stdio: 'inherit' }
-  );
-  console.log(`Saved: ${out}`);
-  fs.rmSync(tmp, { recursive: true, force: true });
+  const ffmpeg = spawn('ffmpeg', [
+    '-y', '-f', 'x11grab', '-draw_mouse', '0',
+    '-framerate', String(FPS),
+    '-video_size', `${W}x${H}`,
+    '-i', ':99',
+    '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+    '-preset', 'medium', '-crf', '20',
+    '-t', String(RECORD_SECONDS),
+    out
+  ], { stdio: ['ignore', 'inherit', 'inherit'] });
+
+  await page.waitForFunction(() => window.animationDone === true, { timeout: 120000 });
+  console.log('Animation complete, waiting for ffmpeg...');
+
+  await new Promise(resolve => {
+    ffmpeg.on('exit', code => {
+      console.log(`ffmpeg exit code: ${code}`);
+      resolve();
+    });
+  });
 
   await browser.close();
   xvfb.kill();
-  console.log('Done!');
+  console.log(`Done! Saved: ${out}`);
 })();
