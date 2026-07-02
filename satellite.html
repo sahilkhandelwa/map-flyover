@@ -114,17 +114,36 @@ window.waitForIdle = function(timeout) {
   return new Promise(resolve => {
     const t = setTimeout(() => resolve(false), timeout || 4000);
     map.once('idle', () => { clearTimeout(t); resolve(true); });
-    // Fallback if already idle (same position as last frame)
-    setTimeout(() => { clearTimeout(t); resolve(true); }, 150);
+    // If map already idle (no new tiles needed), resolve on next frame
+    requestAnimationFrame(() => {
+      if (!map._loading && !map._tileLayersToLoad) {
+        clearTimeout(t); resolve(true);
+      }
+    });
   });
 };
 
 window.setFrameAndWait = async function(frame, total) {
-  setFrame(frame, total);
-  await waitForIdle(4000);
+  window.setFrame(frame, total);
+  await window.waitForIdle(4000);
 };
 
-map.whenReady(() => { window.warmupDone = true; });
+// Pre-warm: visit each unique keyframe position and wait for tiles
+window.prewarm = async function() {
+  const seen = new Set();
+  for (const kf of K) {
+    const key = `${kf[1].toFixed(1)},${kf[2].toFixed(1)},${kf[3]}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      map.setView([kf[1], kf[2]], kf[3], { animate: false });
+      await window.waitForIdle(8000);
+    }
+  }
+  map.setView([K[0][1], K[0][2]], K[0][3], { animate: false });
+  window.warmupDone = true;
+};
+
+map.whenReady(() => { window.prewarm(); });
 </script>
 </body>
 </html>

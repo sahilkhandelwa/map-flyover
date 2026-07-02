@@ -27,13 +27,14 @@ process.env.DISPLAY = ':99';
   const dir = __dirname;
   console.log('Opening satellite.html...');
   await page.goto(`file://${dir}/satellite.html`, { waitUntil: 'networkidle', timeout: 180000 });
-  await page.waitForFunction(() => window.warmupDone === true, { timeout: 30000 });
-  console.log(`Rendering ${TOTAL} frames with tile wait...`);
+  console.log('Warming tiles...');
+  await page.waitForFunction(() => window.warmupDone === true, { timeout: 180000 });
+  console.log('Render starting...');
   console.time('render');
 
   for (let f = 0; f < TOTAL; f++) {
     await page.evaluate(async (f) => {
-      window.setFrameAndWait(f, 540);
+      await window.setFrameAndWait(f, 540);
     }, f);
     await page.screenshot({
       path: `${tmp}/${String(f).padStart(5, '0')}.png`,
