@@ -46,7 +46,7 @@ const server = http.createServer((req, res) => {
   console.log(`Opening http://127.0.0.1:${PORT}/...`);
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'networkidle', timeout: 180000 });
   console.log('Warming tiles + caching via Service Worker...');
-  await page.waitForFunction(() => window.warmupDone === true, { timeout: 180000 });
+  await page.waitForFunction(() => window.warmupDone === true, { timeout: 300000 });
   console.log('Render starting...');
   console.time('render');
 

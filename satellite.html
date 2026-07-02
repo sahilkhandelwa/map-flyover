@@ -115,41 +115,42 @@ window.setFrame = function(frame, total) {
   applyState(s);
 };
 
+// Pre-warm: event-driven, waits for real tile idle (network tiles)
 window.waitForIdle = function(timeout) {
   return new Promise(resolve => {
     const t = setTimeout(() => resolve(false), timeout || 4000);
-    // Wait for moveend first (leaflet queued tile requests)
     map.once('moveend', () => {
-      // Now tiles are being requested — wait for idle (all loaded)
       map.once('idle', () => { clearTimeout(t); resolve(true); });
-      // Fallback: check 100ms later in case idle already fired
-      setTimeout(() => {
-        if (map._tileLayersToLoad === 0) {
-          clearTimeout(t); resolve(true);
-        }
-      }, 100);
     });
   });
 };
 
-window.setFrameAndWait = async function(frame, total) {
-  window.setFrame(frame, total);
-  await window.waitForIdle(4000);
-};
-
-// Pre-warm: visit each unique keyframe position and wait for tiles
 window.prewarm = async function() {
   const seen = new Set();
   for (const kf of K) {
     const key = `${kf[1].toFixed(1)},${kf[2].toFixed(1)},${kf[3]}`;
     if (!seen.has(key)) {
       seen.add(key);
+      const p = window.waitForIdle(8000);
       map.setView([kf[1], kf[2]], kf[3], { animate: false });
-      await window.waitForIdle(8000);
+      await p;
     }
   }
   map.setView([K[0][1], K[0][2]], K[0][3], { animate: false });
   window.warmupDone = true;
+};
+
+// Render: set frame with 200ms delay (tiles are SW-cached from pre-warm)
+window.setFrameAndWait = async function(frame, total) {
+  const s = getState(frame, total);
+  // Start moveend+idle listener BEFORE setView
+  const p = new Promise(resolve => {
+    map.once('moveend', () => { map.once('idle', () => resolve(true)); });
+  });
+  applyState(s);
+  map.setView([s.lat, s.lng], s.zoom, { animate: false });
+  // Fixed 200ms for cached tiles; idle fires earlier if tiles load
+  await Promise.race([p, new Promise(r => setTimeout(r, 200))]);
 };
 
 map.whenReady(() => { window.prewarm(); });
