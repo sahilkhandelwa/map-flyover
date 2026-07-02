@@ -118,12 +118,16 @@ window.setFrame = function(frame, total) {
 window.waitForIdle = function(timeout) {
   return new Promise(resolve => {
     const t = setTimeout(() => resolve(false), timeout || 4000);
-    map.once('idle', () => { clearTimeout(t); resolve(true); });
-    // If map already idle (no new tiles needed), resolve on next frame
-    requestAnimationFrame(() => {
-      if (!map._loading && !map._tileLayersToLoad) {
-        clearTimeout(t); resolve(true);
-      }
+    // Wait for moveend first (leaflet queued tile requests)
+    map.once('moveend', () => {
+      // Now tiles are being requested — wait for idle (all loaded)
+      map.once('idle', () => { clearTimeout(t); resolve(true); });
+      // Fallback: check 100ms later in case idle already fired
+      setTimeout(() => {
+        if (map._tileLayersToLoad === 0) {
+          clearTimeout(t); resolve(true);
+        }
+      }, 100);
     });
   });
 };
