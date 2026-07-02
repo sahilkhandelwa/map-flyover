@@ -1,17 +1,36 @@
 const { chromium } = require('playwright');
 const { execSync, spawn } = require('child_process');
 const fs = require('fs');
+const http = require('http');
+const path = require('path');
 
 const FPS = 15;
 const DURATION = 36;
 const TOTAL = FPS * DURATION;
 const W = 1280, H = 720;
+const PORT = 8765;
 
 const xvfb = spawn('Xvfb', [':99', '-screen', '0', `${W}x${H}x24`, '-ac'], {});
 process.env.DISPLAY = ':99';
 
+// Simple HTTP server so Service Worker can register
+const server = http.createServer((req, res) => {
+  const filePath = path.join(__dirname, req.url === '/' ? 'satellite.html' : req.url);
+  const ext = path.extname(filePath);
+  const types = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg' };
+  fs.readFile(filePath, (err, data) => {
+    if (err) { res.writeHead(404); res.end(); return; }
+    res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream', 'Service-Worker-Allowed': '/' });
+    res.end(data);
+  });
+});
+
 (async () => {
   await new Promise(r => setTimeout(r, 2000));
+
+  server.listen(PORT, '127.0.0.1');
+  await new Promise(r => server.on('listening', r));
+
   const browser = await chromium.launch({
     headless: false,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
@@ -24,10 +43,9 @@ process.env.DISPLAY = ':99';
   const ctx = await browser.newContext({ viewport: { width: W, height: H, deviceScaleFactor: 1 } });
   const page = await ctx.newPage();
 
-  const dir = __dirname;
-  console.log('Opening satellite.html...');
-  await page.goto(`file://${dir}/satellite.html`, { waitUntil: 'networkidle', timeout: 180000 });
-  console.log('Warming tiles...');
+  console.log(`Opening http://127.0.0.1:${PORT}/...`);
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'networkidle', timeout: 180000 });
+  console.log('Warming tiles + caching via Service Worker...');
   await page.waitForFunction(() => window.warmupDone === true, { timeout: 180000 });
   console.log('Render starting...');
   console.time('render');
@@ -46,7 +64,7 @@ process.env.DISPLAY = ':99';
   console.timeEnd('render');
   await ctx.close();
 
-  const out = `${dir}/satellite.mp4`;
+  const out = `${__dirname}/satellite.mp4`;
   console.log('Encoding...');
   execSync(
     `ffmpeg -y -framerate ${FPS} -i ${tmp}/%05d.png -c:v libx264 -pix_fmt yuv420p -preset medium -crf 20 "${out}"`,
@@ -57,5 +75,6 @@ process.env.DISPLAY = ':99';
 
   await browser.close();
   xvfb.kill();
+  server.close();
   console.log('Done!');
 })();
