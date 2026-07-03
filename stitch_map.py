@@ -5,8 +5,8 @@ from PIL import Image
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
 
-# Zoom level 5 (8192x8192, ~50MB, high quality for country/city views)
-ZOOM = 5
+# Zoom level 6 (16384x16384, ~180MB, shows cities clearly at zoom)
+ZOOM = 6
 TILES_PER_SIDE = 2**ZOOM
 TILE_SIZE = 256
 IMG_SIZE = TILES_PER_SIDE * TILE_SIZE
