@@ -11,159 +11,152 @@
 <script>
 const c = document.getElementById('c'), ctx = c.getContext('2d');
 const img = new Image();
-const ZOOM_SIZE = 8192;
+const ZOOM = 8192;
 
 function ll2px(lat, lng) {
-  return [(lng + 180) / 360 * ZOOM_SIZE, (90 - lat) / 180 * ZOOM_SIZE];
+  return [(lng + 180) / 360 * ZOOM, (90 - lat) / 180 * ZOOM];
 }
-
 function lerp(a, b, t) { return a + (b - a) * t; }
 
-// Simplified country borders as lat/lng arrays
 const borders = {
   india: [
-    [6.75, 77.0], [8.0, 77.5], [9.5, 78.0], [10.5, 80.0],
-    [13.0, 80.3], [16.0, 82.0], [18.0, 84.0], [20.0, 87.0],
-    [21.5, 88.0], [22.5, 88.5], [24.0, 89.0], [26.0, 88.5],
-    [27.0, 89.0], [28.0, 88.0], [31.0, 80.0], [32.0, 78.0],
-    [34.0, 77.0], [34.5, 75.0], [35.0, 74.0], [34.0, 73.0],
-    [33.0, 72.0], [30.0, 69.0], [25.0, 67.0], [23.0, 68.0],
-    [22.0, 69.0], [21.0, 70.0], [20.0, 71.0], [18.0, 73.0],
-    [15.0, 74.0], [12.0, 74.0], [10.0, 76.0], [8.0, 77.0]
+    [6.75,77],[8,77.5],[9.5,78],[10.5,80],[13,80.3],[16,82],[18,84],[20,87],
+    [21.5,88],[22.5,88.5],[24,89],[26,88.5],[27,89],[28,88],[31,80],[32,78],
+    [34,77],[34.5,75],[35,74],[34,73],[33,72],[30,69],[25,67],[23,68],
+    [22,69],[21,70],[20,71],[18,73],[15,74],[12,74],[10,76],[8,77]
   ],
   iran: [
-    [25.0, 56.0], [26.0, 57.0], [27.0, 59.0], [30.0, 61.0],
-    [33.0, 60.0], [36.0, 61.0], [37.5, 60.0], [38.0, 57.0],
-    [39.0, 55.0], [38.0, 52.0], [37.0, 49.0], [36.0, 46.0],
-    [35.0, 46.0], [33.0, 47.0], [31.0, 49.0], [30.0, 48.0],
-    [29.0, 48.5], [27.0, 50.0], [25.0, 53.0], [25.0, 55.0]
+    [25,56],[26,57],[27,59],[30,61],[33,60],[36,61],[37.5,60],[38,57],
+    [39,55],[38,52],[37,49],[36,46],[35,46],[33,47],[31,49],[30,48],
+    [29,48.5],[27,50],[25,53],[25,55]
   ],
   usa: [
-    [25.0, -80.0], [24.5, -82.0], [25.0, -82.5], [29.0, -89.0],
-    [29.0, -91.0], [27.0, -94.0], [25.5, -97.5], [26.0, -98.0],
-    [29.0, -100.0], [30.0, -104.0], [31.0, -106.0], [32.0, -108.0],
-    [33.0, -112.0], [32.0, -115.0], [32.5, -117.0], [34.0, -119.0],
-    [36.0, -121.0], [37.0, -122.0], [39.0, -123.0], [42.0, -124.0],
-    [46.0, -124.0], [48.0, -125.0], [49.0, -122.0], [49.0, -117.0],
-    [49.0, -105.0], [49.0, -97.0], [49.0, -90.0], [47.0, -87.0],
-    [45.0, -85.0], [44.0, -83.0], [42.0, -80.0], [41.5, -76.0],
-    [41.0, -74.0], [40.5, -74.0], [39.0, -75.0], [38.0, -76.0],
-    [37.0, -76.0], [35.0, -78.0], [34.0, -79.0], [33.0, -81.0],
-    [30.0, -83.0], [28.0, -82.0]
+    [25,-80],[24.5,-82],[25,-82.5],[29,-89],[29,-91],[27,-94],[25.5,-97.5],
+    [26,-98],[29,-100],[30,-104],[31,-106],[32,-108],[33,-112],[32,-115],
+    [32.5,-117],[34,-119],[36,-121],[37,-122],[39,-123],[42,-124],[46,-124],
+    [48,-125],[49,-122],[49,-117],[49,-105],[49,-97],[49,-90],[47,-87],
+    [45,-85],[44,-83],[42,-80],[41.5,-76],[41,-74],[40.5,-74],[39,-75],
+    [38,-76],[37,-76],[35,-78],[34,-79],[33,-81],[30,-83],[28,-82]
   ]
 };
 
-const cities = {
-  india: [
-    { name: 'Mumbai', lat: 19.07, lng: 72.87 },
-    { name: 'Delhi', lat: 28.61, lng: 77.23 },
-    { name: 'Bangalore', lat: 12.97, lng: 77.59 }
-  ],
-  iran: [
-    { name: 'Tehran', lat: 35.68, lng: 51.38 },
-    { name: 'Isfahan', lat: 32.65, lng: 51.67 }
-  ],
-  usa: [
-    { name: 'New York', lat: 40.71, lng: -74.00 }
-  ]
+const COLORS = { india: '#ff9933', iran: '#00cc44', usa: '#3366ff' };
+const CITY_COORDS = {
+  Mumbai: [19.07, 72.87], Delhi: [28.61, 77.23], Bangalore: [12.97, 77.59],
+  Tehran: [35.68, 51.38], Isfahan: [32.65, 51.67], 'New York': [40.71, -74.00]
 };
 
-const keyframes = [
-  { lat: 22, lng: 79, scale: 1.8, country: 'india' },     // 0  India overview
-  { lat: 19.07, lng: 72.87, scale: 5, country: 'india' },  // 1  Mumbai
-  { lat: 28.61, lng: 77.23, scale: 5, country: 'india' },  // 2  Delhi
-  { lat: 12.97, lng: 77.59, scale: 5, country: 'india' },  // 3  Bangalore
-  { lat: 22, lng: 79, scale: 1.8, country: 'india' },      // 4  India overview
-  { lat: 32, lng: 53, scale: 1.8, country: 'iran' },       // 5  Iran overview
-  { lat: 35.68, lng: 51.38, scale: 5, country: 'iran' },   // 6  Tehran
-  { lat: 32.65, lng: 51.67, scale: 5, country: 'iran' },   // 7  Isfahan
-  { lat: 32, lng: 53, scale: 1.8, country: 'iran' },       // 8  Iran overview
-  { lat: 40, lng: -100, scale: 1.5, country: 'usa' },      // 9  USA overview
-  { lat: 40.71, lng: -74.00, scale: 5, country: 'usa' },   // 10 New York
-  { lat: 40, lng: -100, scale: 1.5, country: 'usa' },      // 11 USA overview
-];
-
-const BORDER_COLORS = { india: '#ff9933', iran: '#00cc44', usa: '#3366ff' };
-
-function drawBorder(country) {
+function drawBorder(country, alpha) {
   const pts = borders[country];
   if (!pts || pts.length < 3) return;
-  const [cx, cy] = ll2px(keyframes[0].lat, keyframes[0].lng);
+  ctx.globalAlpha = alpha;
   ctx.beginPath();
   for (let i = 0; i < pts.length; i++) {
     const [px, py] = ll2px(pts[i][0], pts[i][1]);
-    const method = i === 0 ? 'moveTo' : 'lineTo';
-    ctx[method](px, py);
+    ctx[i === 0 ? 'moveTo' : 'lineTo'](px, py);
   }
   ctx.closePath();
-  ctx.strokeStyle = BORDER_COLORS[country];
+  ctx.fillStyle = COLORS[country];
+  ctx.globalAlpha = alpha * 0.25;
+  ctx.fill();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = COLORS[country];
   ctx.lineWidth = 3;
   ctx.stroke();
-  ctx.fillStyle = BORDER_COLORS[country] + '22';
-  ctx.fill();
+  ctx.globalAlpha = 1;
 }
 
-function drawCityMarkers(country) {
-  const list = cities[country];
-  if (!list) return;
-  for (const city of list) {
-    const [px, py] = ll2px(city.lat, city.lng);
-    ctx.beginPath();
-    ctx.arc(px, py, 6, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffdd00';
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+function drawCityMarker(lat, lng) {
+  const [px, py] = ll2px(lat, lng);
+  ctx.beginPath();
+  ctx.arc(px, py, 8, 0, Math.PI * 2);
+  ctx.fillStyle = '#00ff00';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+const TOTAL = 540, FPS = 15;
+const frames = [];
+
+function hold(s, lat, lng, scale, country) {
+  const n = Math.round(s * FPS);
+  for (let i = 0; i < n; i++) frames.push({ lat, lng, scale, country, marker: null });
+}
+function fly(s, lat1, lng1, s1, lat2, lng2, s2, country, marker) {
+  const n = Math.max(1, Math.round(s * FPS));
+  for (let i = 0; i < n; i++) {
+    const t = i / n;
+    frames.push({ lat: lerp(lat1, lat2, t), lng: lerp(lng1, lng2, t), scale: lerp(s1, s2, t), country, marker: marker || null });
   }
 }
 
-window.setFrame = function(frame, total) {
-  const t = frame / total;
-  const segs = keyframes.length - 1;
-  const seg = Math.min(Math.floor(t * segs), segs - 1);
-  const localT = (t * segs - seg);
-  const kfA = keyframes[seg], kfB = keyframes[seg + 1];
+// India chapter
+hold(3, 22, 79, 2, 'india');
+fly(0.5, 22, 79, 2, 19.07, 72.87, 2.5, 'india', 'Mumbai');
+hold(2.5, 19.07, 72.87, 2.5, 'india');
+fly(0.5, 19.07, 72.87, 2.5, 28.61, 77.23, 2.5, 'india', 'Delhi');
+hold(2.5, 28.61, 77.23, 2.5, 'india');
+fly(0.5, 28.61, 77.23, 2.5, 12.97, 77.59, 2.5, 'india', 'Bangalore');
+hold(2.5, 12.97, 77.59, 2.5, 'india');
+// Iran chapter
+fly(3, 12.97, 77.59, 2.5, 32, 53, 2, 'iran', null);
+hold(3, 32, 53, 2, 'iran');
+fly(0.5, 32, 53, 2, 35.68, 51.38, 2.5, 'iran', 'Tehran');
+hold(2.5, 35.68, 51.38, 2.5, 'iran');
+fly(0.5, 35.68, 51.38, 2.5, 32.65, 51.67, 2.5, 'iran', 'Isfahan');
+hold(2.5, 32.65, 51.67, 2.5, 'iran');
+// USA chapter
+fly(3, 32.65, 51.67, 2.5, 40, -100, 1.8, 'usa', null);
+hold(3, 40, -100, 1.8, 'usa');
+fly(0.5, 40, -100, 1.8, 40.71, -74, 2.5, 'usa', 'New York');
+hold(2.5, 40.71, -74, 2.5, 'usa');
+hold(3, 40, -100, 1.8, 'usa');
 
-  const lat = lerp(kfA.lat, kfB.lat, localT);
-  const lng = lerp(kfA.lng, kfB.lng, localT);
-  const scale = lerp(kfA.scale, kfB.scale, localT);
+// Ensure exactly 540
+while (frames.length > TOTAL) frames.pop();
+while (frames.length < TOTAL) frames.push({ ...frames[frames.length - 1] });
 
-  const [px, py] = ll2px(lat, lng);
+// Determine which countries to show per frame for transitions
+// Track when country changes
+for (let i = 0; i < frames.length; i++) {
+  frames[i].prevCountry = i > 0 ? frames[i-1].country : frames[i].country;
+  frames[i].nextCountry = i < frames.length - 1 ? frames[i+1].country : frames[i].country;
+}
+
+window.setFrame = function(f) {
+  const fd = frames[f];
+  const [px, py] = ll2px(fd.lat, fd.lng);
   const cx = c.width / 2, cy = c.height / 2;
 
   ctx.clearRect(0, 0, c.width, c.height);
 
-  // Draw map
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.scale(scale, scale);
+  ctx.scale(fd.scale, fd.scale);
   ctx.translate(-px, -py);
+
   ctx.drawImage(img, 0, 0);
 
-  // Draw current country border + cities
-  const country = kfA.country;
-  drawBorder(country);
-  drawCityMarkers(country);
+  // Active country at full opacity
+  drawBorder(fd.country, 1);
 
-  // Also draw next country's border if transitioning
-  if (kfB.country !== country) {
-    const blend = localT;
-    const alpha = blend;
-    ctx.globalAlpha = alpha * 0.6;
-    const nxtBorder = borders[kfB.country];
-    if (nxtBorder && nxtBorder.length >= 3) {
-      ctx.beginPath();
-      for (let i = 0; i < nxtBorder.length; i++) {
-        const [bx, by] = ll2px(nxtBorder[i][0], nxtBorder[i][1]);
-        ctx[i === 0 ? 'moveTo' : 'lineTo'](bx, by);
-      }
-      ctx.closePath();
-      ctx.strokeStyle = BORDER_COLORS[kfB.country];
-      ctx.lineWidth = 3;
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
+  // If transitioning between countries, also show the other one fading
+  if (fd.prevCountry !== fd.country) {
+    // Transitioning INTO this country -> prev fades out
+    drawBorder(fd.prevCountry, 0.4);
+  }
+  if (fd.nextCountry !== fd.country && f < frames.length - 1) {
+    // Next country fading in
+    drawBorder(fd.nextCountry, 0.2);
+  }
+
+  // Draw marker for current city if any
+  const marker = fd.marker;
+  if (marker && CITY_COORDS[marker]) {
+    const [mlat, mlng] = CITY_COORDS[marker];
+    drawCityMarker(mlat, mlng);
   }
 
   ctx.restore();
