@@ -17,24 +17,25 @@ process.env.DISPLAY = ':99';
   const page = await ctx.newPage();
 
   console.log('Loading...');
-  await page.goto('file://' + __dirname + '/satellite.html', { waitUntil: 'networkidle', timeout: 180000 });
-  console.log('Warming tiles...');
-  for (let i = 0; i < 180; i++) {
-    const done = await page.evaluate(() => window.warmupDone === true);
-    if (done) break;
+  await page.goto('file://' + __dirname + '/demo.html', { waitUntil: 'load', timeout: 60000 });
+
+  console.log('Waiting for image...');
+  for (let i = 0; i < 600; i++) {
+    const done = await page.evaluate(() => typeof window.mapImg !== 'undefined' && window.mapImg.complete && window.mapImg.naturalWidth > 0);
+    if (done) { console.log('Image loaded'); break; }
+    if (i % 30 === 0) console.log('  still waiting...');
     await new Promise(r => setTimeout(r, 1000));
   }
+
   console.log('Rendering 540 frames...');
   console.time('render');
-
   for (let f = 0; f < TOTAL; f++) {
     await page.evaluate(f => window.setFrame(f, 540), f);
-    await new Promise(r => setTimeout(r, 200));
     await page.screenshot({ path: `${tmp}/${String(f).padStart(5, '0')}.png`, type: 'png' });
     if (f % 54 === 0) console.log(`  ${Math.round(f / TOTAL * 100)}% (${f}/${TOTAL})`);
   }
-
   console.timeEnd('render');
+
   await ctx.close();
   const out = __dirname + '/satellite.mp4';
   console.log('Encoding...');

@@ -1,5 +1,6 @@
-config.js
 node_modules/
-satellite.mp4
-test-*.cjs
-webgl-test.html
+world_map.png
+world_map_partial.png
+*.mp4
+/tmp/
+download-artifact/

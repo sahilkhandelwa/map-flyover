@@ -19,8 +19,12 @@ jobs:
         run: |
           npm install
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg xvfb
+          sudo apt-get install -y -qq ffmpeg xvfb python3-pip
           npx playwright install chromium --with-deps
+          pip3 install requests pillow -q
+
+      - name: Download & stitch world map
+        run: python3 stitch_map.py
 
       - name: Render video
         run: npm run render
