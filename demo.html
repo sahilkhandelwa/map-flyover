@@ -111,25 +111,29 @@ function fly(s, lat1, lng1, s1, lat2, lng2, s2, country, marker) {
 
 // India chapter
 hold(3, 22, 79, 1.5, 'india');
-fly(0.5, 22, 79, 1.5, 19.07, 72.87, 8, 'india', 'Mumbai');
-hold(2.5, 19.07, 72.87, 8, 'india');
-fly(0.5, 19.07, 72.87, 8, 28.61, 77.23, 8, 'india', 'Delhi');
-hold(2.5, 28.61, 77.23, 8, 'india');
-fly(0.5, 28.61, 77.23, 8, 12.97, 77.59, 8, 'india', 'Bangalore');
-hold(2.5, 12.97, 77.59, 8, 'india');
-// Iran chapter
-fly(3, 12.97, 77.59, 8, 32, 53, 1.5, 'iran', null);
+fly(0.5, 22, 79, 1.5, 19.07, 72.87, 2.2, 'india', 'Mumbai');
+hold(2.5, 19.07, 72.87, 2.2, 'india');
+fly(0.5, 19.07, 72.87, 2.2, 28.61, 77.23, 2.2, 'india', 'Delhi');
+hold(2.5, 28.61, 77.23, 2.2, 'india');
+fly(0.5, 28.61, 77.23, 2.2, 12.97, 77.59, 2.2, 'india', 'Bangalore');
+hold(2.5, 12.97, 77.59, 2.2, 'india');
+// Zoom back out before flying to Iran
+fly(0.3, 12.97, 77.59, 2.2, 22, 79, 1.5, 'india', null);
+fly(2.7, 22, 79, 1.5, 32, 53, 1.5, 'iran', null);
 hold(3, 32, 53, 1.5, 'iran');
-fly(0.5, 32, 53, 1.5, 35.68, 51.38, 8, 'iran', 'Tehran');
-hold(2.5, 35.68, 51.38, 8, 'iran');
-fly(0.5, 35.68, 51.38, 8, 32.65, 51.67, 8, 'iran', 'Isfahan');
-hold(2.5, 32.65, 51.67, 8, 'iran');
-// USA chapter
-fly(3, 32.65, 51.67, 8, 40, -100, 1.5, 'usa', null);
+fly(0.5, 32, 53, 1.5, 35.68, 51.38, 2.2, 'iran', 'Tehran');
+hold(2.5, 35.68, 51.38, 2.2, 'iran');
+fly(0.5, 35.68, 51.38, 2.2, 32.65, 51.67, 2.2, 'iran', 'Isfahan');
+hold(2.5, 32.65, 51.67, 2.2, 'iran');
+// Zoom back out before flying to USA
+fly(0.3, 32.65, 51.67, 2.2, 32, 53, 1.5, 'iran', null);
+fly(2.7, 32, 53, 1.5, 40, -100, 1.5, 'usa', null);
 hold(3, 40, -100, 1.5, 'usa');
-fly(0.5, 40, -100, 1.5, 40.71, -74, 8, 'usa', 'New York');
-hold(2.5, 40.71, -74, 8, 'usa');
-hold(3, 40, -100, 1.5, 'usa');
+fly(0.5, 40, -100, 1.5, 40.71, -74, 2.2, 'usa', 'New York');
+hold(2.5, 40.71, -74, 2.2, 'usa');
+// Zoom back out before final hold
+fly(0.5, 40.71, -74, 2.2, 40, -100, 1.5, 'usa', null);
+hold(2.5, 40, -100, 1.5, 'usa');
 
 while (frames.length > TOTAL) frames.pop();
 while (frames.length < TOTAL) frames.push({ ...frames[frames.length - 1] });
