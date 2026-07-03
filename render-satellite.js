@@ -19,7 +19,11 @@ process.env.DISPLAY = ':99';
   console.log('Loading...');
   await page.goto('file://' + __dirname + '/satellite.html', { waitUntil: 'networkidle', timeout: 180000 });
   console.log('Warming tiles...');
-  await page.waitForFunction(() => window.warmupDone === true, { timeout: 300000 });
+  for (let i = 0; i < 180; i++) {
+    const done = await page.evaluate(() => window.warmupDone === true);
+    if (done) break;
+    await new Promise(r => setTimeout(r, 1000));
+  }
   console.log('Rendering 540 frames...');
   console.time('render');
 
