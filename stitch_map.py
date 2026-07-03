@@ -14,7 +14,7 @@ IMG_SIZE = TILES_PER_SIDE * TILE_SIZE
 print(f"Creating a {IMG_SIZE}x{IMG_SIZE} pixel image using parallel threads...", flush=True)
 output_img = Image.new('RGB', (IMG_SIZE, IMG_SIZE))
 
-URL_TEMPLATE = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
 
 def fetch_tile(coords):
     y, x = coords
@@ -29,8 +29,8 @@ def fetch_tile(coords):
 
 coords_list = [(y, x) for y in range(TILES_PER_SIDE) for x in range(TILES_PER_SIDE)]
 
-# Use 8 threads to speed up downloading (respect OSM rate limits)
-with ThreadPoolExecutor(max_workers=8) as executor:
+# Use 20 threads to speed up downloading
+with ThreadPoolExecutor(max_workers=20) as executor:
     results = list(executor.map(fetch_tile, coords_list))
 
 for y, x, tile in results:
